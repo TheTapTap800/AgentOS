@@ -7,15 +7,20 @@ source "$HERE/common.sh"
 
 log "installing Hermes Agent"
 ensure_user
-apt_install ca-certificates curl git python3 python3-venv
+# Pre-install the installer's "optional" deps (ripgrep, ffmpeg) up front so it
+# never stops to prompt for sudo to install them — that prompt is what hangs a
+# non-interactive (no-TTY) build.
+apt_install ca-certificates curl git python3 python3-venv ripgrep ffmpeg
 
 # Official Nous installer (verified URL). Pin a commit via HERMES_INSTALL_URL
 # for reproducible images.
 HERMES_INSTALL_URL="${HERMES_INSTALL_URL:-https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh}"
 if ! command -v hermes >/dev/null 2>&1; then
-  # Run installer as the agent user so the binary lands in their PATH.
-  sudo -u "$AGENTOS_USER" bash -c "curl -fsSL '$HERMES_INSTALL_URL' | bash" || \
-    warn "Hermes installer returned non-zero; verify network/URL"
+  # Run as the agent user; feed /dev/null so any interactive read gets EOF
+  # instead of blocking, and cap with a timeout so a hang can't wedge the build.
+  # Non-fatal: the binary is what we need; one-time `hermes setup` happens later.
+  timeout 900 sudo -u "$AGENTOS_USER" bash -c "curl -fsSL '$HERMES_INSTALL_URL' | bash" </dev/null \
+    || warn "Hermes installer non-zero/timeout — finish with 'hermes setup' on the box"
 fi
 
 install -d -o "$AGENTOS_USER" -g "$AGENTOS_USER" "${AGENTOS_HOME}/.hermes"
