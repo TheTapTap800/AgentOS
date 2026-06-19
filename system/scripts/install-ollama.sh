@@ -5,7 +5,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE/common.sh"
 
 log "installing Ollama runtime"
-apt_install ca-certificates curl
+# zstd is required by Ollama's installer for archive extraction.
+apt_install ca-certificates curl zstd
 
 if ! command -v ollama >/dev/null 2>&1; then
   # Official installer; OLLAMA_VERSION pinnable for reproducible images.
