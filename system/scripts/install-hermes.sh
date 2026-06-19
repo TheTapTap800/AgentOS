@@ -27,8 +27,11 @@ if ! command -v hermes >/dev/null 2>&1; then
   chmod 0440 "$HERMES_SUDOERS"
   # Run as agent; feed /dev/null (EOF on any read); cap with a timeout.
   # Non-fatal: the binary is what we need; one-time `hermes setup` happens later.
+  # --skip-setup: install the binary but DON'T launch the interactive setup
+  # wizard (it reads /dev/tty and blocks). The one-time `hermes setup` is run by
+  # the operator later (see AGENTOS_SETUP_HINT.txt).
   timeout 600 sudo -u "$AGENTOS_USER" env DEBIAN_FRONTEND=noninteractive \
-      bash -c "curl -fsSL '$HERMES_INSTALL_URL' | bash" </dev/null \
+      bash -c "curl -fsSL '$HERMES_INSTALL_URL' | bash -s -- --skip-setup" </dev/null \
     || warn "Hermes installer non-zero/timeout — finish with 'hermes setup' on the box"
   rm -f "$HERMES_SUDOERS"
 fi
