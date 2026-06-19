@@ -1,0 +1,5 @@
+# Rename to "authorized_keys" (no extension) to bake your laptop's SSH public
+# key into the ISO so the box is reachable on first boot.
+# Get your key:  cat ~/.ssh/id_ed25519.pub   (or id_rsa.pub)
+# One key per line. Example:
+# ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... you@laptop

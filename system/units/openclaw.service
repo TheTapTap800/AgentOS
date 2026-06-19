@@ -1,0 +1,25 @@
+[Unit]
+Description=OpenClaw autonomous agent
+Documentation=https://github.com/openclaw/openclaw
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agent
+Group=agent
+WorkingDirectory=/home/agent/.openclaw
+# EnvironmentFile holds secrets (ANTHROPIC_API_KEY, etc) injected at deploy time.
+EnvironmentFile=-/etc/agentos/secrets.env
+# Config auto-loaded from ~/.openclaw/openclaw.json. Gateway is the persistent daemon.
+ExecStart=/usr/bin/openclaw gateway --port 18789
+Restart=on-failure
+RestartSec=5
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/agent/.openclaw /var/lib/agentos
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

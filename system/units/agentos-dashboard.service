@@ -1,0 +1,19 @@
+[Unit]
+Description=AgentOS web dashboard (kiosk UI + control API)
+After=network.target
+Wants=ollama.service openclaw.service hermes.service
+
+[Service]
+Type=simple
+User=agent
+Group=agent
+WorkingDirectory=/opt/agentos/dashboard
+Environment=AGENTOS_DASHBOARD_PORT=8080
+Environment=OLLAMA_HOST=127.0.0.1:11434
+ExecStart=/opt/agentos/dashboard/.venv/bin/uvicorn backend.app:app --host 127.0.0.1 --port 8080
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

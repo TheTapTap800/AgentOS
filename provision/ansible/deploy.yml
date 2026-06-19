@@ -1,0 +1,89 @@
+---
+# Deploy / reconfigure AgentOS on a live machine from your laptop.
+#
+#   cd provision/ansible
+#   ansible-playbook deploy.yml                 # full provision
+#   ansible-playbook deploy.yml --tags config   # just push config + restart
+#
+# Run after editing anything under system/, dashboard/, or kiosk/ — this is the
+# "edit the whole thing from another machine" workflow.
+- name: Provision AgentOS
+  hosts: agentos
+  gather_facts: true
+
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+    target_prefix: /opt/agentos
+    # Path to your local secrets file (NOT committed). See secrets.example.env.
+    secrets_file: "{{ playbook_dir }}/secrets.env"
+
+  tasks:
+    - name: Sync runtime payload to target
+      ansible.posix.synchronize:
+        src: "{{ repo_root }}/{{ item }}"
+        dest: "{{ target_prefix }}/"
+        delete: false
+        rsync_opts:
+          - "--exclude=.venv"
+          - "--exclude=.git"
+      loop:
+        - system
+        - dashboard
+        - kiosk
+        - VERSION
+      tags: [sync, config]
+
+    - name: Ensure secrets dir
+      ansible.builtin.file:
+        path: /etc/agentos
+        state: directory
+        mode: "0700"
+      tags: [config]
+
+    - name: Push secrets (API keys, etc) — kept off the image
+      ansible.builtin.copy:
+        src: "{{ secrets_file }}"
+        dest: /etc/agentos/secrets.env
+        mode: "0600"
+      when: secrets_file is exists
+      tags: [config]
+
+    - name: Push hostname (optional)
+      ansible.builtin.copy:
+        content: "{{ inventory_hostname }}\n"
+        dest: /etc/agentos/hostname
+        mode: "0644"
+      tags: [config]
+
+    - name: Push SSH authorized_keys (optional)
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/authorized_keys"
+        dest: /etc/agentos/authorized_keys
+        mode: "0644"
+      when: (playbook_dir + '/authorized_keys') is exists
+      tags: [config]
+
+    - name: Make scripts executable
+      ansible.builtin.shell: "chmod +x {{ target_prefix }}/system/scripts/*.sh {{ target_prefix }}/kiosk/*.sh"
+      changed_when: false
+      tags: [sync]
+
+    - name: Run shared provisioner
+      ansible.builtin.command: "bash {{ target_prefix }}/system/scripts/provision-all.sh"
+      environment:
+        AGENTOS_LOCAL_MODEL: "{{ agentos_local_model | default('hermes3:8b') }}"
+      register: prov
+      changed_when: "'provisioning complete' in prov.stdout"
+      tags: [sync]
+
+    - name: Restart agent services to pick up config
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: restarted
+        daemon_reload: true
+      loop:
+        - ollama.service
+        - openclaw.service
+        - hermes.service
+        - agentos-dashboard.service
+      tags: [config]

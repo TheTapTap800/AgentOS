@@ -1,0 +1,10 @@
+[Unit]
+Description=AgentOS over-the-air update check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/agentos/system/scripts/agentos-update.sh
+# Don't let a hung download wedge the box.
+TimeoutStartSec=1800

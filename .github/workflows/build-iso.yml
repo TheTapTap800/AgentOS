@@ -1,0 +1,50 @@
+name: Build & Release ISO
+
+# Push a version tag (e.g. `git tag v0.2.0 && git push --tags`) to build the ISO
+# and publish a GitHub Release. Deployed boxes poll the Releases API hourly and
+# auto-pull the update payload (see system/scripts/agentos-update.sh).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # needed to create the Release
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/share/boost || true
+          df -h /
+
+      - name: Install live-build toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y live-build debootstrap xorriso squashfs-tools rsync
+
+      - name: Build ISO
+        run: sudo AGENTOS_WORK=/mnt/agentos-build bash ./build/build-iso.sh
+        # /mnt has the most free space on GitHub runners and is a native fs.
+
+      - name: Rename ISO with version
+        run: |
+          mkdir -p dist
+          cp build/agentos-amd64.iso "dist/agentos-${GITHUB_REF_NAME}-amd64.iso"
+          (cd dist && sha256sum *.iso > SHA256SUMS)
+          ls -lh dist
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: AgentOS ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/agentos-${{ github.ref_name }}-amd64.iso
+            dist/SHA256SUMS

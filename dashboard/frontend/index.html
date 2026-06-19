@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgentOS</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="aurora"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">◆</div>
+      <div>
+        <h1>AgentOS</h1>
+        <span class="sub" id="hostline">connecting…</span>
+      </div>
+    </div>
+    <div class="clock" id="clock">--:--</div>
+  </header>
+
+  <main class="grid">
+    <!-- Agent control cards -->
+    <section class="col agents">
+      <h2 class="section-title">Agents</h2>
+      <div id="agent-cards" class="cards"></div>
+    </section>
+
+    <!-- Models + system -->
+    <aside class="col side">
+      <div class="panel">
+        <h2 class="section-title">Local models</h2>
+        <div class="muted small" id="ollama-state">checking Ollama…</div>
+        <ul id="model-list" class="model-list"></ul>
+      </div>
+
+      <div class="panel">
+        <h2 class="section-title">System</h2>
+        <dl class="kv" id="sysinfo"></dl>
+      </div>
+    </aside>
+
+    <!-- Live logs -->
+    <section class="col logs">
+      <div class="logs-head">
+        <h2 class="section-title">Logs</h2>
+        <select id="log-select"></select>
+      </div>
+      <pre id="log-view" class="log-view">select a service…</pre>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

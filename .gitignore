@@ -1,0 +1,17 @@
+# build artifacts
+build/.build/
+build/cache/
+build/chroot/
+build/config/includes.chroot/opt/agentos/
+build/*.iso
+build/*.log
+build/auto/cache/
+
+# python venvs
+**/.venv/
+__pycache__/
+*.pyc
+
+# secrets — never commit
+provision/ansible/secrets.env
+**/secrets.env

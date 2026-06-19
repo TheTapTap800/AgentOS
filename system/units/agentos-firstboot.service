@@ -1,0 +1,13 @@
+[Unit]
+Description=AgentOS first-boot setup (hostname + SSH key)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/agentos/.firstboot-done
+
+[Service]
+Type=oneshot
+ExecStart=/opt/agentos/system/scripts/firstboot-run.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

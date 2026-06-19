@@ -1,0 +1,12 @@
+[Unit]
+Description=AgentOS hourly update check
+
+[Timer]
+# First check 5 min after boot, then hourly. Randomized so fleets don't stampede.
+OnBootSec=5min
+OnUnitActiveSec=1h
+RandomizedDelaySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

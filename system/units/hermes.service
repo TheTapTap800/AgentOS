@@ -1,0 +1,27 @@
+[Unit]
+Description=Nous Research Hermes Agent
+Documentation=https://hermes-agent.nousresearch.com
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agent
+Group=agent
+WorkingDirectory=/home/agent/.hermes
+EnvironmentFile=-/etc/agentos/secrets.env
+# Hermes runs its persistent messaging daemon via `hermes gateway`. Requires the
+# one-time `hermes setup` wizard to have been completed (see AGENTOS_SETUP_HINT.txt).
+# Override HERMES_SERVE_CMD if upstream changes the daemon subcommand.
+ExecStart=/usr/bin/hermes gateway
+# Don't crash-loop before first-time setup is done.
+ExecStartPre=/bin/sh -c 'test -e /home/agent/.hermes/config* || (echo "hermes not yet set up; run hermes setup" >&2; exit 1)'
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/agent/.hermes /var/lib/agentos
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

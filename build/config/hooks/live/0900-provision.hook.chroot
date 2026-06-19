@@ -1,0 +1,8 @@
+#!/bin/sh
+# Runs inside the live-build chroot after packages are installed. Hands off to
+# the shared provisioner so the ISO and the Ansible deploy install identically.
+set -e
+echo "[agentos] running in-image provisioning hook"
+chmod +x /opt/agentos/system/scripts/*.sh /opt/agentos/kiosk/*.sh
+AGENTOS_IMAGE_BUILD=1 bash /opt/agentos/system/scripts/provision-all.sh --image-build
+echo "[agentos] in-image provisioning hook complete"
