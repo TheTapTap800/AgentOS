@@ -16,6 +16,7 @@ lb config noauto \
   --security false \
   --firmware-chroot false \
   --firmware-binary false \
+  --initsystem systemd \
   --linux-flavours generic \
   --linux-packages linux-image \
   --bootappend-live "boot=live components quiet splash" \
