@@ -122,6 +122,26 @@ Boot the target PC from the USB. First boot pulls the local model
   "Custom endpoint" → `http://127.0.0.1:11434/v1`, blank key, pick a ≥64k-context
   model. Details are in `~/.hermes/AGENTOS_SETUP_HINT.txt` on the box.
 
+## Login
+
+Default credentials (SSH + console):
+
+| | |
+|---|---|
+| **user** | `agent` |
+| **password** | `agentos` |
+
+`agent` is a sudoer; root login is disabled. The kiosk autologins as `agent`
+(no password needed for the dashboard). **Change the password** any of these ways:
+
+- **Live (simplest):** `ssh agent@<box>` → `passwd`
+- **At ISO build:** `echo 'mysecret' > build/password` before `build-iso.sh`
+  (applied on first boot, then shredded from the image)
+- **Per-box / fleet:** `ansible-playbook deploy.yml -e agentos_password=mysecret --tags config`
+- Re-provision and OTA updates **never** reset a password you've changed.
+
+> Change the default before exposing a box to an untrusted network.
+
 ## Updates (OTA)
 
 Every deployed box runs `agentos-update.timer` (hourly). It polls this repo's

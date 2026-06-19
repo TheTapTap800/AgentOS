@@ -35,6 +35,18 @@ else
   warn "no /etc/agentos/authorized_keys — remote key login unavailable until you add one"
 fi
 
+# --- optional custom login password -------------------------------------------
+# Bake build/password (plaintext, one line) or push /etc/agentos/password to set
+# a per-box login password on first boot. Applied once, then shredded.
+if [ -s "${CONF_DIR}/password" ]; then
+  PW="$(head -n1 "${CONF_DIR}/password" | tr -d '\r\n')"
+  if [ -n "$PW" ]; then
+    log "setting ${AGENTOS_USER} password from ${CONF_DIR}/password"
+    echo "${AGENTOS_USER}:${PW}" | chpasswd
+  fi
+  shred -u "${CONF_DIR}/password" 2>/dev/null || rm -f "${CONF_DIR}/password"
+fi
+
 systemctl enable --now ssh.service 2>/dev/null || systemctl enable --now sshd.service 2>/dev/null || true
 
 mkdir -p "$AGENTOS_STATE"

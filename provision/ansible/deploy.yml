@@ -63,6 +63,12 @@
       when: (playbook_dir + '/authorized_keys') is exists
       tags: [config]
 
+    - name: Set login password (optional, define agentos_password to use)
+      ansible.builtin.shell: "echo '{{ agentos_user | default('agent') }}:{{ agentos_password }}' | chpasswd"
+      when: agentos_password is defined
+      no_log: true
+      tags: [config]
+
     - name: Make scripts executable
       ansible.builtin.shell: "chmod +x {{ target_prefix }}/system/scripts/*.sh {{ target_prefix }}/kiosk/*.sh"
       changed_when: false

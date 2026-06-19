@@ -6,6 +6,10 @@ set -euo pipefail
 
 # ---- configuration knobs (override via environment) -------------------------
 AGENTOS_USER="${AGENTOS_USER:-agent}"
+# Default login password, set ONLY when the user is first created (re-provision
+# and OTA never clobber a password you changed). Override at build time with
+# AGENTOS_PASSWORD=... or build/password; change live with `passwd`.
+AGENTOS_PASSWORD="${AGENTOS_PASSWORD:-agentos}"
 AGENTOS_HOME="${AGENTOS_HOME:-/home/${AGENTOS_USER}}"
 AGENTOS_PREFIX="${AGENTOS_PREFIX:-/opt/agentos}"
 AGENTOS_STATE="${AGENTOS_STATE:-/var/lib/agentos}"
@@ -55,6 +59,11 @@ ensure_user() {
     log "creating user ${AGENTOS_USER}"
     useradd --create-home --shell /bin/bash "$AGENTOS_USER"
     usermod -aG sudo,video,audio,render "$AGENTOS_USER" 2>/dev/null || true
+    # Set the initial password once. Skipped on re-provision so a password the
+    # operator changed (via passwd / firstboot / Ansible) is never reset.
+    if [ -n "${AGENTOS_PASSWORD:-}" ]; then
+      echo "${AGENTOS_USER}:${AGENTOS_PASSWORD}" | chpasswd
+    fi
   fi
   mkdir -p "$AGENTOS_STATE" "$AGENTOS_PREFIX"
   chown -R "$AGENTOS_USER:$AGENTOS_USER" "$AGENTOS_STATE"

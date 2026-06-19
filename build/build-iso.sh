@@ -68,6 +68,9 @@ mkdir -p config/includes.chroot/etc/agentos
 [ -f "${BUILD_DIR}/hostname" ] && {
   echo "[agentos] baking hostname into image"
   install -m 0644 "${BUILD_DIR}/hostname" config/includes.chroot/etc/agentos/hostname; }
+[ -f "${BUILD_DIR}/password" ] && {
+  echo "[agentos] baking custom login password into image (applied + shredded on first boot)"
+  install -m 0600 "${BUILD_DIR}/password" config/includes.chroot/etc/agentos/password; }
 
 echo "[agentos] lb config"
 lb config
