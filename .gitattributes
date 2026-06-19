@@ -1,0 +1,6 @@
+# Force LF on everything so shell scripts / systemd units / live-build configs
+# never get CRLF (which breaks bash, the ISO build, and the OTA payload).
+* text=auto eol=lf
+*.iso binary
+*.png binary
+*.gz binary
