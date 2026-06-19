@@ -15,7 +15,7 @@ ensure_user
 # seatd/greetd handle autologin into the Wayland session with no display mgr.
 apt_install cage surf xwayland seatd greetd fonts-inter
 
-systemctl enable seatd.service 2>/dev/null || svc_enable seatd.service
+svc_enable seatd.service
 usermod -aG video,input,render,seat "$AGENTOS_USER" 2>/dev/null || true
 
 install -d "${AGENTOS_PREFIX}/kiosk"
@@ -32,8 +32,9 @@ command = "${AGENTOS_PREFIX}/kiosk/agentos-kiosk.sh"
 user = "${AGENTOS_USER}"
 EOF
 
-systemctl enable greetd.service 2>/dev/null || svc_enable greetd.service
+svc_enable greetd.service
 # Boot to graphical kiosk, not a text console.
 systemctl set-default graphical.target 2>/dev/null || true
+ln -sf /lib/systemd/system/graphical.target /etc/systemd/system/default.target 2>/dev/null || true
 
 log "kiosk configured — boots into dashboard on port ${DASHBOARD_PORT}"

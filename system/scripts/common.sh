@@ -26,6 +26,11 @@ AGENTOS_LOCAL_MODEL="${AGENTOS_LOCAL_MODEL:-hermes3:8b}"
 
 export DEBIAN_FRONTEND=noninteractive
 
+# Inherit the ERR trap into functions/subshells and report exactly what failed —
+# turns "config/hooks/...chroot failed (exit non-zero)" into a precise location.
+set -E
+trap 'rc=$?; printf "\033[1;31m[agentos:FAIL]\033[0m rc=%s at %s:%s -> %s\n" "$rc" "${BASH_SOURCE##*/}" "${LINENO}" "${BASH_COMMAND}" >&2' ERR
+
 log()  { printf '\033[1;36m[agentos]\033[0m %s\n' "$*" >&2; }
 warn() { printf '\033[1;33m[agentos:warn]\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31m[agentos:err]\033[0m %s\n' "$*" >&2; exit 1; }
@@ -38,9 +43,15 @@ in_image_build() { [ "${AGENTOS_IMAGE_BUILD:-0}" = "1" ]; }
 svc_enable() {
   local unit="$1"
   if in_image_build; then
-    systemctl enable "$unit" 2>/dev/null || \
-      ln -sf "/etc/systemd/system/${unit}" \
-             "/etc/systemd/system/multi-user.target.wants/${unit}" 2>/dev/null || true
+    # No running systemd in the build chroot: enable offline, falling back to a
+    # manual wants-symlink. Always succeed — enablement is best-effort here.
+    mkdir -p /etc/systemd/system/multi-user.target.wants
+    systemctl enable "$unit" 2>/dev/null \
+      || ln -sf "/lib/systemd/system/${unit}" \
+                "/etc/systemd/system/multi-user.target.wants/${unit}" 2>/dev/null \
+      || ln -sf "/etc/systemd/system/${unit}" \
+                "/etc/systemd/system/multi-user.target.wants/${unit}" 2>/dev/null \
+      || true
   else
     systemctl daemon-reload
     systemctl enable --now "$unit"
