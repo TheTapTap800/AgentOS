@@ -14,7 +14,7 @@ DASHBOARD_PORT="${DASHBOARD_PORT:-8080}"
 
 # GitHub repo the auto-updater pulls releases from, as "owner/name". Baked into
 # /etc/agentos/update.conf at provision time. Empty = auto-update disabled.
-AGENTOS_REPO="${AGENTOS_REPO:-TheTapTap800/agentos}"
+AGENTOS_REPO="${AGENTOS_REPO:-TheTapTap800/AgentOS}"
 
 # Default local model pulled by Ollama for the "local" half of hybrid inference.
 # Hermes Agent needs >= 64k context; hermes3 satisfies this.
