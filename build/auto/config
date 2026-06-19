@@ -21,6 +21,7 @@ lb config noauto \
   --linux-packages linux-image \
   --bootappend-live "boot=live components quiet splash" \
   --binary-images iso-hybrid \
+  --bootloader grub \
   --debian-installer false \
   --iso-application "AgentOS" \
   --iso-publisher "AgentOS" \
