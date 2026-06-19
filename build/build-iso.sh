@@ -27,10 +27,14 @@ esac
 [ "$(id -u)" -eq 0 ] || { echo "run as root (sudo -E ./build/build-iso.sh)"; exit 1; }
 
 echo "[agentos] checking builder dependencies"
-if ! command -v lb >/dev/null 2>&1; then
-  echo "[agentos] installing live-build + tooling"
+# live-build builds the rootfs; grub-mkrescue + xorriso build the bootable ISO.
+# (This old live-build can't make a noble-compatible bootloader, so we assemble
+#  the ISO ourselves with modern grub2 — true BIOS + UEFI hybrid.)
+NEED="live-build debootstrap xorriso squashfs-tools rsync mtools grub-common grub-pc-bin grub-efi-amd64-bin"
+if ! command -v lb >/dev/null 2>&1 || ! command -v grub-mkrescue >/dev/null 2>&1; then
+  echo "[agentos] installing build toolchain"
   apt-get update -qq
-  apt-get install -y live-build debootstrap xorriso squashfs-tools rsync
+  apt-get install -y $NEED
 fi
 
 echo "[agentos] preparing native work dir: ${WORK}"
@@ -68,18 +72,60 @@ mkdir -p config/includes.chroot/etc/agentos
 echo "[agentos] lb config"
 lb config
 
-echo "[agentos] lb build (downloads packages; 20-60 min)"
-lb build
+# Build only through the chroot stage: bootstrap + package install + our
+# provisioning hook. We deliberately DO NOT run `lb binary` — its ancient
+# bootloader code is incompatible with noble. We assemble the ISO below.
+echo "[agentos] lb bootstrap (cached after first run)"
+lb bootstrap
+echo "[agentos] lb chroot (installs packages + runs AgentOS provisioning hook)"
+lb chroot
 
-# live-build emits live-image-amd64.hybrid.iso; normalize + copy back to repo.
-if [ -f live-image-amd64.hybrid.iso ]; then
-  cp -f live-image-amd64.hybrid.iso "$OUT_ISO"
-elif [ -f live-image-amd64.iso ]; then
-  cp -f live-image-amd64.iso "$OUT_ISO"
-else
-  echo "[agentos] ERROR: no ISO produced — check live-build output above"
-  exit 1
-fi
+CHROOT="$WORK/chroot"
+[ -d "$CHROOT" ] || { echo "[agentos] ERROR: chroot not built"; exit 1; }
+
+# Make sure no virtual filesystems are still bind-mounted in the chroot.
+for m in dev/pts dev proc sys run; do
+  mountpoint -q "$CHROOT/$m" && umount -lf "$CHROOT/$m" 2>/dev/null || true
+done
+
+echo "[agentos] assembling ISO tree"
+ISOROOT="$WORK/iso"
+rm -rf "$ISOROOT"
+mkdir -p "$ISOROOT/live" "$ISOROOT/boot/grub"
+
+# Newest kernel + initrd from the chroot.
+KERNEL="$(ls -1 "$CHROOT"/boot/vmlinuz-* 2>/dev/null | sort -V | tail -1)"
+INITRD="$(ls -1 "$CHROOT"/boot/initrd.img-* 2>/dev/null | sort -V | tail -1)"
+[ -n "$KERNEL" ] && [ -n "$INITRD" ] || { echo "[agentos] ERROR: kernel/initrd missing in chroot"; exit 1; }
+cp "$KERNEL" "$ISOROOT/live/vmlinuz"
+cp "$INITRD" "$ISOROOT/live/initrd.img"
+
+echo "[agentos] squashing root filesystem (this takes a few minutes)"
+mksquashfs "$CHROOT" "$ISOROOT/live/filesystem.squashfs" \
+  -noappend -comp xz -wildcards \
+  -e "boot/vmlinuz-*" -e "boot/initrd.img-*" \
+  -e "proc/*" -e "sys/*" -e "dev/*" -e "run/*" -e "tmp/*" \
+  -e "var/cache/apt/archives/*.deb"
+
+# GRUB menu. live-boot mounts /live/filesystem.squashfs as root from boot=live.
+cat >"$ISOROOT/boot/grub/grub.cfg" <<EOF
+set default=0
+set timeout=5
+menuentry "AgentOS" {
+    linux /live/vmlinuz boot=live components quiet splash
+    initrd /live/initrd.img
+}
+menuentry "AgentOS (safe graphics)" {
+    linux /live/vmlinuz boot=live components nomodeset
+    initrd /live/initrd.img
+}
+EOF
+
+echo "[agentos] grub-mkrescue -> ${OUT_ISO} (BIOS + UEFI hybrid)"
+grub-mkrescue -o "$OUT_ISO" "$ISOROOT" \
+  -- -volid AGENTOS
+
+[ -f "$OUT_ISO" ] || { echo "[agentos] ERROR: ISO not produced"; exit 1; }
 
 echo "[agentos] DONE -> ${OUT_ISO}"
 ls -lh "$OUT_ISO"
