@@ -1,0 +1,14 @@
+[Unit]
+Description=AgentOS first-boot Hermes Agent install
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/agentos/.hermes-installed
+
+[Service]
+Type=oneshot
+ExecStart=/opt/agentos/system/scripts/hermes-bootstrap.sh
+RemainAfterExit=yes
+TimeoutStartSec=1200
+
+[Install]
+WantedBy=multi-user.target

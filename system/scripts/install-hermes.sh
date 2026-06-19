@@ -5,35 +5,24 @@
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE/common.sh"
 
-log "installing Hermes Agent"
+log "configuring Hermes Agent"
 ensure_user
-# Pre-install EVERY dep the installer would otherwise stop to `sudo apt install`
-# (each such prompt reads /dev/tty and hangs a no-TTY build): optional tools
-# (ripgrep, ffmpeg) AND the Python build toolchain (build-essential, python3-dev,
-# libffi-dev, pkg-config). With these already present the installer skips its
-# interactive sudo steps entirely.
+# Pre-install the Hermes installer's deps now so the first-boot install is fast
+# and never has to stop to sudo-apt anything.
 apt_install ca-certificates curl git python3 python3-venv \
             ripgrep ffmpeg build-essential python3-dev libffi-dev pkg-config
 
-# Official Nous installer (verified URL). Pin a commit via HERMES_INSTALL_URL
-# for reproducible images.
-HERMES_INSTALL_URL="${HERMES_INSTALL_URL:-https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh}"
-if ! command -v hermes >/dev/null 2>&1; then
-  # Belt-and-suspenders: grant the agent temporary passwordless sudo so ANY
-  # sudo call the installer makes (even ones we didn't pre-empt) can't block on
-  # a password prompt. Removed immediately after — never in the shipped image.
-  HERMES_SUDOERS=/etc/sudoers.d/agentos-hermes-install
-  echo "${AGENTOS_USER} ALL=(ALL) NOPASSWD:ALL" >"$HERMES_SUDOERS"
-  chmod 0440 "$HERMES_SUDOERS"
-  # Run as agent; feed /dev/null (EOF on any read); cap with a timeout.
-  # Non-fatal: the binary is what we need; one-time `hermes setup` happens later.
-  # --skip-setup: install the binary but DON'T launch the interactive setup
-  # wizard (it reads /dev/tty and blocks). The one-time `hermes setup` is run by
-  # the operator later (see AGENTOS_SETUP_HINT.txt).
-  timeout 600 sudo -u "$AGENTOS_USER" env DEBIAN_FRONTEND=noninteractive \
-      bash -c "curl -fsSL '$HERMES_INSTALL_URL' | bash -s -- --skip-setup" </dev/null \
-    || warn "Hermes installer non-zero/timeout — finish with 'hermes setup' on the box"
-  rm -f "$HERMES_SUDOERS"
+# IMPORTANT: we do NOT run the Hermes installer during the image build. Its
+# upstream installer is long-running, spawns tty-reading children, and reliably
+# hangs a no-TTY chroot build (timeout can't reap it). Instead we defer the
+# actual binary install to first boot via agentos-hermes-install.service, which
+# runs hermes-bootstrap.sh (detached, capped, idempotent). On a LIVE deploy
+# (Ansible, not image build) we just run the bootstrap directly.
+if in_image_build; then
+  log "deferring Hermes binary install to first boot"
+  svc_enable agentos-hermes-install.service
+else
+  bash "$HERE/hermes-bootstrap.sh" || warn "Hermes bootstrap returned non-zero"
 fi
 
 install -d -o "$AGENTOS_USER" -g "$AGENTOS_USER" "${AGENTOS_HOME}/.hermes"
@@ -57,4 +46,4 @@ EOF
 chown -R "$AGENTOS_USER:$AGENTOS_USER" "${AGENTOS_HOME}/.hermes"
 
 svc_enable hermes.service
-log "Hermes Agent installed. One-time 'hermes setup' required — see ~/.hermes/AGENTOS_SETUP_HINT.txt"
+log "Hermes configured (binary installs on first boot). One-time 'hermes setup' required — see ~/.hermes/AGENTOS_SETUP_HINT.txt"
